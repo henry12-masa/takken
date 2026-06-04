@@ -1,131 +1,170 @@
-const quizList = {
-  rights: "権利関係",
-  gyouhou: "宅建業法",
-  horei: "法令上の制限",
-  tax: "税・その他",
-  exemption: "5問免除",
-  practice: "総合演習",
-  mistake: "ひっかけ問題",
-  rightsAdvanced: "権利関係 上級",
-  gyouhouAdvanced: "宅建業法 上級",
-  pastExam: "過去問風"
-};
-
 const params = new URLSearchParams(location.search);
 const type = params.get("type") || "rights";
 
-const menu = document.getElementById("menu");
+const quizInfo = {
+  rights: {
+    title: "権利関係",
+    desc: "民法・借地借家法・区分所有法"
+  },
+  gyouhou: {
+    title: "宅建業法",
+    desc: "免許・重要事項説明・37条書面"
+  },
+  horei: {
+    title: "法令上の制限",
+    desc: "都市計画法・建築基準法・農地法"
+  },
+  tax: {
+    title: "税・その他",
+    desc: "固定資産税・印紙税・登録免許税"
+  },
+  exemption: {
+    title: "5問免除",
+    desc: "統計・住宅金融支援機構・景品表示法"
+  },
+  practice: {
+    title: "総合演習",
+    desc: "全科目ミックス演習"
+  },
+  mistake: {
+    title: "ひっかけ問題",
+    desc: "数字・例外・誤文対策"
+  },
+  rightsAdvanced: {
+    title: "権利関係 上級",
+    desc: "民法・借地借家法の難問"
+  },
+  gyouhouAdvanced: {
+    title: "宅建業法 上級",
+    desc: "8種制限・保証金・監督処分"
+  },
+  pastExam: {
+    title: "過去問風",
+    desc: "本試験形式の4択演習"
+  }
+};
 
-if (menu) {
-  menu.innerHTML = "";
+const info = quizInfo[type] || quizInfo.rights;
 
-  Object.keys(quizList).forEach(key => {
-    const a = document.createElement("a");
-    a.href = `?type=${key}`;
-    a.textContent = quizList[key];
+document.title = info.title;
+document.getElementById("pageTitle").textContent = info.title;
+document.getElementById("pageDesc").textContent = info.desc;
 
-    if (key === type) {
-      a.classList.add("active");
-    }
+const quizList = document.getElementById("quizList");
 
-    menu.appendChild(a);
-  });
+quizList.innerHTML = Object.keys(quizInfo).map(key => {
+  return `
+    <a href="?type=${key}" class="${key === type ? "active" : ""}">
+      ${quizInfo[key].title}
+    </a>
+  `;
+}).join("");
+
+function normalizeQuestion(q) {
+  return {
+    question: q.question || q.q,
+    choices: q.choices || q.c,
+    answer: q.answer || q.a
+  };
 }
 
-const allQuestions = window.quizData[type] || [];
+function shuffle(array) {
+  return [...array].sort(() => Math.random() - 0.5);
+}
 
-let questions = [...allQuestions]
-  .sort(() => Math.random() - 0.5)
-  .slice(0, 50);
+const rawQuestions = window.quizData[type] || window.quizData.rights || [];
+
+let questions = shuffle(rawQuestions.map(normalizeQuestion)).slice(0, 50);
 
 let current = 0;
 let score = 0;
 let answered = false;
 
-const count = document.getElementById("count");
+const counter = document.getElementById("counter");
 const scoreEl = document.getElementById("score");
 const questionEl = document.getElementById("question");
 const choicesEl = document.getElementById("choices");
 const resultEl = document.getElementById("result");
-const bar = document.getElementById("bar");
+const progressBar = document.getElementById("progressBar");
 
 function showQuestion() {
-  answered = false;
-
   if (questions.length === 0) {
+    counter.textContent = "0 / 0";
     questionEl.textContent = "問題データが読み込めません";
     choicesEl.innerHTML = "";
-    resultEl.textContent = `type=${type} のデータがありません`;
+    resultEl.textContent = `window.quizData.${type} がありません`;
     return;
   }
 
   if (current >= questions.length) {
-    finish();
+    finishQuiz();
     return;
   }
 
+  answered = false;
+
   const q = questions[current];
 
-  count.textContent = `${current + 1} / ${questions.length}`;
-  scoreEl.textContent = `スコア:${score}`;
-
+  counter.textContent = `${current + 1} / ${questions.length}`;
+  scoreEl.textContent = `スコア: ${score}`;
   questionEl.textContent = q.question;
   resultEl.textContent = "";
 
-  bar.style.width = `${(current / questions.length) * 100}%`;
+  progressBar.style.width = `${(current / questions.length) * 100}%`;
 
   choicesEl.innerHTML = "";
 
-  const choices = [...q.choices].sort(() => Math.random() - 0.5);
-
-  choices.forEach(choice => {
-    const btn = document.createElement("button");
-    btn.textContent = choice;
-    btn.onclick = () => answer(btn, choice);
-    choicesEl.appendChild(btn);
+  shuffle(q.choices).forEach(choice => {
+    const button = document.createElement("button");
+    button.textContent = choice;
+    button.onclick = () => checkAnswer(button, choice);
+    choicesEl.appendChild(button);
   });
 }
 
-function answer(btn, choice) {
+function checkAnswer(button, choice) {
   if (answered) return;
 
   answered = true;
 
   const q = questions[current];
 
-  document.querySelectorAll("#choices button").forEach(b => {
-    b.disabled = true;
+  document.querySelectorAll("#choices button").forEach(btn => {
+    btn.disabled = true;
 
-    if (b.textContent === q.answer) {
-      b.classList.add("correct");
+    if (btn.textContent === q.answer) {
+      btn.classList.add("correct");
     }
   });
 
   if (choice === q.answer) {
     score++;
+    button.classList.add("correct");
     resultEl.textContent = "正解！";
-    btn.classList.add("correct");
   } else {
-    btn.classList.add("wrong");
-    resultEl.textContent = `不正解！ 正解:${q.answer}`;
+    button.classList.add("wrong");
+    resultEl.textContent = `不正解！ 正解は「${q.answer}」`;
   }
 
-  scoreEl.textContent = `スコア:${score}`;
+  scoreEl.textContent = `スコア: ${score}`;
 
   setTimeout(() => {
     current++;
     showQuestion();
-  }, 1800);
+  }, 1300);
 }
 
-function finish() {
-  bar.style.width = "100%";
-
+function finishQuiz() {
+  counter.textContent = "終了";
+  progressBar.style.width = "100%";
   questionEl.textContent = "結果発表";
 
   choicesEl.innerHTML = `
-    <h3>${questions.length}問中 ${score}問正解</h3>
-    <button onclick="location.reload()">もう一度挑戦</button>
+    <div class="finish">
+      <p>${questions.length}問中 ${score}問正解！</p>
+      <button onclick="location.reload()">もう一度挑戦</button>
+      <a class="home-btn" href="./">ジャンル選択へ戻る</a>
+    </div>
   `;
 
   resultEl.textContent = "";
