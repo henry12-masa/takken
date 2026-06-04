@@ -1,139 +1,134 @@
-const allQuestions = window.quizData.takken;
+const quizList = {
+  rights: "権利関係",
+  gyouhou: "宅建業法",
+  horei: "法令上の制限",
+  tax: "税・その他",
+  exemption: "5問免除",
+  practice: "総合演習",
+  mistake: "ひっかけ問題",
+  rightsAdvanced: "権利関係 上級",
+  gyouhouAdvanced: "宅建業法 上級",
+  pastExam: "過去問風"
+};
 
-let questions =
-[...allQuestions]
-.sort(() => Math.random() - 0.5)
-.slice(0,50);
+const params = new URLSearchParams(location.search);
+const type = params.get("type") || "rights";
 
-let current=0;
-let score=0;
-let answered=false;
+const menu = document.getElementById("menu");
 
-const count=document.getElementById("count");
-const scoreEl=document.getElementById("score");
-const questionEl=document.getElementById("question");
-const choicesEl=document.getElementById("choices");
-const resultEl=document.getElementById("result");
-const bar=document.getElementById("bar");
+if (menu) {
+  menu.innerHTML = "";
 
-function showQuestion(){
+  Object.keys(quizList).forEach(key => {
+    const a = document.createElement("a");
+    a.href = `?type=${key}`;
+    a.textContent = quizList[key];
 
-answered=false;
+    if (key === type) {
+      a.classList.add("active");
+    }
 
-if(current>=questions.length){
-
-finish();
-
-return;
-
+    menu.appendChild(a);
+  });
 }
 
-const q=questions[current];
+const allQuestions = window.quizData[type] || [];
 
-count.textContent=
-`${current+1} / ${questions.length}`;
+let questions = [...allQuestions]
+  .sort(() => Math.random() - 0.5)
+  .slice(0, 50);
 
-scoreEl.textContent=
-`スコア:${score}`;
+let current = 0;
+let score = 0;
+let answered = false;
 
-questionEl.textContent=q.q;
+const count = document.getElementById("count");
+const scoreEl = document.getElementById("score");
+const questionEl = document.getElementById("question");
+const choicesEl = document.getElementById("choices");
+const resultEl = document.getElementById("result");
+const bar = document.getElementById("bar");
 
-resultEl.textContent="";
+function showQuestion() {
+  answered = false;
 
-bar.style.width=
-`${current/questions.length*100}%`;
+  if (questions.length === 0) {
+    questionEl.textContent = "問題データが読み込めません";
+    choicesEl.innerHTML = "";
+    resultEl.textContent = `type=${type} のデータがありません`;
+    return;
+  }
 
-choicesEl.innerHTML="";
+  if (current >= questions.length) {
+    finish();
+    return;
+  }
 
-const choices=[...q.c]
-.sort(()=>Math.random()-0.5);
+  const q = questions[current];
 
-choices.forEach(choice=>{
+  count.textContent = `${current + 1} / ${questions.length}`;
+  scoreEl.textContent = `スコア:${score}`;
 
-const btn=document.createElement("button");
+  questionEl.textContent = q.question;
+  resultEl.textContent = "";
 
-btn.textContent=choice;
+  bar.style.width = `${(current / questions.length) * 100}%`;
 
-btn.onclick=()=>answer(btn,choice);
+  choicesEl.innerHTML = "";
 
-choicesEl.appendChild(btn);
+  const choices = [...q.choices].sort(() => Math.random() - 0.5);
 
-});
-
+  choices.forEach(choice => {
+    const btn = document.createElement("button");
+    btn.textContent = choice;
+    btn.onclick = () => answer(btn, choice);
+    choicesEl.appendChild(btn);
+  });
 }
 
-function answer(btn,choice){
+function answer(btn, choice) {
+  if (answered) return;
 
-if(answered) return;
+  answered = true;
 
-answered=true;
+  const q = questions[current];
 
-const q=questions[current];
+  document.querySelectorAll("#choices button").forEach(b => {
+    b.disabled = true;
 
-document.querySelectorAll("#choices button")
-.forEach(b=>{
+    if (b.textContent === q.answer) {
+      b.classList.add("correct");
+    }
+  });
 
-b.disabled=true;
+  if (choice === q.answer) {
+    score++;
+    resultEl.textContent = "正解！";
+    btn.classList.add("correct");
+  } else {
+    btn.classList.add("wrong");
+    resultEl.textContent = `不正解！ 正解:${q.answer}`;
+  }
 
-if(b.textContent===q.a){
+  scoreEl.textContent = `スコア:${score}`;
 
-b.classList.add("correct");
-
+  setTimeout(() => {
+    current++;
+    showQuestion();
+  }, 1800);
 }
 
-});
+function finish() {
+  bar.style.width = "100%";
 
-if(choice===q.a){
+  questionEl.textContent = "結果発表";
 
-score++;
+  choicesEl.innerHTML = `
+    <h3>${questions.length}問中 ${score}問正解</h3>
+    <button onclick="location.reload()">もう一度挑戦</button>
+  `;
 
-resultEl.textContent=
-`正解！ ${q.e}`;
-
-btn.classList.add("correct");
-
-}else{
-
-btn.classList.add("wrong");
-
-resultEl.textContent=
-`不正解！ 正解:${q.a}
-　${q.e}`;
-
-}
-
-scoreEl.textContent=
-`スコア:${score}`;
-
-setTimeout(()=>{
-
-current++;
-
-showQuestion();
-
-},1800);
-
-}
-
-function finish(){
-
-bar.style.width="100%";
-
-questionEl.textContent=
-"結果発表";
-
-choicesEl.innerHTML=`
-<h3>
-50問中 ${score}問正解
-</h3>
-
-<button onclick="location.reload()">
-もう一度挑戦
-</button>
-`;
-
-resultEl.textContent="";
-
+  resultEl.textContent = "";
 }
 
 showQuestion();
